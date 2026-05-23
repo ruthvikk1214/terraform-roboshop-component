@@ -24,7 +24,7 @@ resource "terraform_data" "main" {
   }
 
   provisioner "file" {
-    source      = "bootstrap.sh"
+    source      = "${path.module}/bootstrap.sh"
     destination = "/tmp/bootstrap.sh"
   }
 
@@ -44,18 +44,18 @@ resource "aws_ec2_instance_state" "main" {
 
 resource "aws_ami_from_instance" "main" {
   source_instance_id = aws_instance.main.id
-  name               = "${var.project}-${var.environment}-main"
+  name               = "${var.project}-${var.environment}-${var.component}"
   depends_on         = [aws_ec2_instance_state.main]
   tags = merge(
     {
-      Name = "${var.project}-${var.environment}-main"
+      Name = "${var.project}-${var.environment}-${var.component}"
     },
     local.common_tags
   )
 }
 
 resource "aws_lb_target_group" "main" {
-  name                 = "${var.project}-${var.environment}-main"
+  name                 = "${var.project}-${var.environment}-${var.component}"
   port                 = local.port_number
   protocol             = "HTTP"
   vpc_id               = local.vpc_id
@@ -73,7 +73,7 @@ resource "aws_lb_target_group" "main" {
 }
 
 resource "aws_launch_template" "main" {
-  name                                 = "${var.project}-${var.environment}-main"
+  name                                 = "${var.project}-${var.environment}-${var.component}"
   instance_initiated_shutdown_behavior = "terminate"
   image_id                             = aws_ami_from_instance.main.id
   instance_type                        = "t3.micro"
@@ -82,7 +82,7 @@ resource "aws_launch_template" "main" {
     resource_type = "instance"
     tags = merge(
       {
-        Name = "${var.project}-${var.environment}-main"
+        Name = "${var.project}-${var.environment}-${var.component}"
       },
       local.common_tags
     )
@@ -90,7 +90,7 @@ resource "aws_launch_template" "main" {
 }
 
 resource "aws_autoscaling_group" "main" {
-  name                      = "${var.project}-${var.environment}-main"
+  name                      = "${var.project}-${var.environment}-${var.component}"
   vpc_zone_identifier       = local.private_subnet_ids
   target_group_arns         = [aws_lb_target_group.main.arn]
   min_size                  = 1
@@ -116,13 +116,13 @@ resource "aws_autoscaling_group" "main" {
   }
   tag {
     key                 = "Name"
-    value               = "${var.project}-${var.environment}-main"
+    value               = "${var.project}-${var.environment}-${var.component}"
     propagate_at_launch = true
   }
 }
 
 resource "aws_autoscaling_policy" "main_scale_up" {
-  name                      = "${var.project}-${var.environment}-main-scale-up"
+  name                      = "${var.project}-${var.environment}-${var.component}-scale-up"
   autoscaling_group_name    = aws_autoscaling_group.main.name
   policy_type               = "TargetTrackingScaling"
   estimated_instance_warmup = 60
